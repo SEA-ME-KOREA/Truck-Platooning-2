@@ -55,7 +55,7 @@ class PlatooningManager:
         if emergency_stop:
             self.node.get_logger().info(f"[{self.namespace}] 비상 정지")
             throttle_msg = Float32()
-            throttle_msg.data = 0.0
+            throttle_msg.data = -1.0
             self.throttle_pub.publish(throttle_msg)
             return
         """
