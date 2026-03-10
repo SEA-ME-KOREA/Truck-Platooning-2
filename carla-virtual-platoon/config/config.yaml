@@ -1,0 +1,72 @@
+/**:
+    ros__parameters:
+        use_sim_time: true
+
+        # --- RGB Camera (기존) ---
+        rgbcam/x : 2.3
+        rgbcam/y : 0.0
+        rgbcam/z : 8.0
+        rgbcam/pitch : -35.0
+        rgbcam/yaw : 0.0
+        rgbcam/roll : 0.0
+        rgbcam/sensor_tick : "0.033333"
+        rgbcam/image_size_x : "640"
+        rgbcam/image_size_y : "480"
+        rgbcam/fov : "90.0"
+        rgbcam_topic_name : "front_camera"
+
+        # ✨ --- Semantic Segmentation Camera (추가) --- ✨
+        # type은 런치 파일에서 'sensor.camera.semantic_segmentation'으로 지정해야 함
+        sscam/x : 2.3                     # rgbcam과 동일한 위치
+        sscam/y : 0.0                     # rgbcam과 동일한 위치
+        sscam/z : 8.0                     # rgbcam과 동일한 위치
+        sscam/pitch : -35.0               # rgbcam과 동일한 위치
+        sscam/yaw : 0.0                   # rgbcam과 동일한 위치
+        sscam/roll : 0.0                  # rgbcam과 동일한 위치
+        sscam/sensor_tick : "0.033333"   # rgbcam과 동일한 주기
+        sscam/image_size_x : "640"        # rgbcam과 동일한 해상도
+        sscam/image_size_y : "480"        # rgbcam과 동일한 해상도
+        sscam/fov : "90.0"               # rgbcam과 동일한 시야각
+        sscam_topic_name : "front_camera_ss" # ✨ 토픽 이름은 반드시 달라야 함
+
+/**:
+    ros__parameters:
+        # --- Radar (기존) ---
+        radar/x : 2.3
+        radar/y : 0.0
+        radar/z : 1.5
+        radar/pitch : 0.0
+        radar/yaw : 0.0
+        radar/roll : 0.0
+        radar/sensor_tick : "0.000001"
+        radar/horizontal_fov : "40.0"
+        radar/vertical_fov : "4.4"
+        radar/points_per_second : "50000"
+        radar/range : "60.0"
+        radar_topic_name: "front_radar"
+
+/**:
+    ros__parameters:
+        # --- Lidar (기존) ---
+        lidar/x : 2.3
+        lidar/y : 0.0
+        lidar/z : 1.0
+        lidar/pitch : 0.0
+        lidar/yaw : 0.0
+        lidar/roll : 0.0
+        lidar/sensor_tick : "0.1"
+        lidar/rotation_frequency : "90.0"
+        lidar/horizontal_fov : "120.0"
+        lidar/upper_fov : "0.0"
+        lidar/lower_fov : "-50.0"
+        lidar/points_per_second : "30000"
+        lidar/range : "200.0"
+        lidar_topic_name : "front_lidar"
+
+/**:
+    ros__parameters:
+        # --- Vehicle Info (기존) ---
+        info_topic_name : "velocity"
+        steer_topic_name : "steer_control"
+        throttle_topic_name : "throttle_control"
+        initial_hand_brake : true

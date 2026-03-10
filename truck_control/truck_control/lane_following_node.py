@@ -163,7 +163,7 @@ class LaneFollowingNode(Node):
     def _guarded_lane_change(self, truck_id, direction, tag=''):
         if self._guard_pending.get(truck_id, False):
             self.get_logger().info(f"[{tag}] Truck {truck_id} 가드 이미 진행 중")
-            return False
+            return
         self._guard_pending[truck_id] = True
         start_ts = time.monotonic()
         scale = self.guard_scale.get(tag, 1.0)
@@ -195,7 +195,6 @@ class LaneFollowingNode(Node):
             self._guard_timer[key] = timer
             timer.start()
         _check_and_change()
-        return True
     
     def get_vehicle_transform(self, truck_id):
         actor = self.carla_actors.get(truck_id)
@@ -312,9 +311,9 @@ class LaneFollowingNode(Node):
         if self._guarded_lane_change(self.truck_order[0], direction):
             followers = [tid for tid in self.truck_order if tid != self.truck_order[0]]
             for i, follower_id in enumerate(followers):
-                threading.Timer((i + 1) * 2.0, lambda fid=follower_id: self._guarded_lane_change(fid, direction)).start()
+                threading.Timer((i + 1) * 2.0, lambda: self._guarded_lane_change(follower_id, direction)).start()
             response.success = True
-            response.message = f"{direction} 차선 변경 절차 예약됨"
+            response.message = f"{direction} 차선 변경 절차 시작됨"
         else:
             response.success = False
             response.message = "차선 변경 실패"

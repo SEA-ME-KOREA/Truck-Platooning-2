@@ -1,28 +1,21 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>truck_platooning</name>
-  <version>0.0.1</version>
-  <description>Autonomous truck platooning package using LiDAR, PID, and camera input.</description>
-  <maintainer email="tmo@todo.todo">tmo</maintainer>
-  <license>Apache-2.0</license>
+  <name>carla-virtual-platoon</name>
+  <version>0.0.0</version>
+  <description>TODO: Package description</description>
+  <maintainer email="todo@todo.com">TODO:</maintainer>
+  <license>GNU General Public License v3.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-
-  <!-- ROS2 core dependencies -->
   <depend>rclcpp</depend>
   <depend>std_msgs</depend>
-  <depend>sensor_msgs</depend>
-  <depend>std_srvs</depend>
-  <depend>nav_msgs</depend>
   <depend>geometry_msgs</depend>
-  <depend>rclpy</depend>
-
-  <!-- Image handling -->
-  <depend>cv_bridge</depend>
+  <exec_depend>ros2launch</exec_depend>
+  <depend>sensor_msgs</depend>
   <depend>image_transport</depend>
+  <depend>cv_bridge</depend>
 
-  <!-- Testing -->
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
 
