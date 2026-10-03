@@ -3,6 +3,17 @@ import numpy as np
 from scipy.signal import find_peaks
 
 _LAST_KNOWN_POSITIONS = {}
+_FILTERED_TARGET_CENTERS = {}
+
+
+def reset_lane_tracking_state(truck_id=None):
+    if truck_id is None:
+        _LAST_KNOWN_POSITIONS.clear()
+        _FILTERED_TARGET_CENTERS.clear()
+        return
+
+    _LAST_KNOWN_POSITIONS.pop(truck_id, None)
+    _FILTERED_TARGET_CENTERS.pop(truck_id, None)
 
 def apply_birds_eye_view(image):
     height, width = image.shape[:2]
@@ -28,7 +39,7 @@ def select_strategic_lanes(all_lane_centers, img_width):
     adj_right = right_lanes[1] if len(right_lanes) > 1 else None
     return center_left, center_right, adj_left, adj_right, sorted(left_lanes + right_lanes)
 
-def _get_fallback_seeds(edges, prefer_right_bias=0.1):
+def _get_fallback_seeds(edges, prefer_right_bias=0.0):
     h, w = edges.shape[:2]
     roi = edges[int(h * 0.6):, :]
     hist = np.sum(roi, axis=0)
@@ -75,7 +86,7 @@ def detect_lane(image, truck_id, last_left_fit, last_right_fit, last_left_slope,
     arx = arx or last_pos.get('adj_right')
 
     if clx is None or crx is None:
-        fallback_l, fallback_r = _get_fallback_seeds(edges, prefer_right_bias=0.1)
+        fallback_l, fallback_r = _get_fallback_seeds(edges, prefer_right_bias=0.0)
         clx = clx or fallback_l
         crx = crx or fallback_r
     if clx is None: clx = int(width * 0.25)
@@ -91,7 +102,6 @@ def detect_lane(image, truck_id, last_left_fit, last_right_fit, last_left_slope,
     window_img = np.zeros_like(image)
 
     lane_positions = {k: v for k, v in lanes_to_track.items() if v is not None}
-    lane_paths = {k: [] for k in lane_positions.keys()}
 
     for window in range(nwindows - 1, -1, -1):
         win_y_low = window * window_height
@@ -113,13 +123,6 @@ def detect_lane(image, truck_id, last_left_fit, last_right_fit, last_left_slope,
                     lane_positions[lane_key] = int(0.7 * current_x + 0.3 * new_center)
                 else:
                     lane_positions[lane_key] = new_center
-            lane_paths[lane_key].append(lane_positions[lane_key])
-
-    # 조향 안정화를 위해 각 차선의 "중간 높이" 대표 x를 별도 저장
-    for key, path in lane_paths.items():
-        if path:
-            mid_idx = len(path) // 2
-            lane_positions[f"{key}_mid"] = path[mid_idx]
 
     for key, pos in lane_positions.items():
         if pos is not None: _LAST_KNOWN_POSITIONS[truck_id][key] = pos
@@ -162,51 +165,48 @@ def detect_lane(image, truck_id, last_left_fit, last_right_fit, last_left_slope,
     return lane_overlay, lane_positions, extra
 
 def calculate_steering(pid_controller, lane_positions, img_width, target_lane='center',
-                       transition_factor=0.0, is_lane_changing=False):
+                       transition_factor=0.0, is_lane_changing=False, truck_id=None):
     if not lane_positions or lane_positions.get('center_left') is None or lane_positions.get('center_right') is None:
         return 0.0
 
-    def _pick_x(key):
-        # 차선 유지 모드에서는 상단 인덱스 대신 중간 인덱스 기반 값을 우선 사용
-        if not is_lane_changing:
-            mid_key = f"{key}_mid"
-            if lane_positions.get(mid_key) is not None:
-                return lane_positions[mid_key]
-        return lane_positions.get(key)
-
     img_center = img_width / 2
-    current_left = _pick_x('center_left')
-    current_right = _pick_x('center_right')
-    if current_left is None or current_right is None:
-        return 0.0
+    current_left, current_right = lane_positions['center_left'], lane_positions['center_right']
     lane_width = current_right - current_left
     target_left, target_right = current_left, current_right
     if target_lane == 'left':
-        adj_left = _pick_x('adj_left')
+        adj_left = lane_positions.get('adj_left')
         if adj_left is not None: target_left, target_right = adj_left, adj_left + lane_width
         else:                     target_left, target_right = current_left - lane_width, current_right - lane_width
     elif target_lane == 'right':
-        adj_right = _pick_x('adj_right')
+        adj_right = lane_positions.get('adj_right')
         if adj_right is not None: target_left, target_right = adj_right - lane_width, adj_right
         else:                      target_left, target_right = current_left + lane_width, current_right + lane_width
 
-    # 차선 변경 중에는 목표 이동량을 완만하게 적용해 급격한 조향을 줄임
-    if is_lane_changing:
-        tf = float(np.clip(transition_factor, 0.0, 1.0))
-        transition_factor = tf * tf * (3.0 - 2.0 * tf)  # smoothstep
-
     blended_left  = current_left  + (target_left  - current_left)  * transition_factor
     blended_right = current_right + (target_right - current_right) * transition_factor
-    lane_center = (blended_left + blended_right) / 2
-    error = (lane_center - img_center) / img_center
+    raw_lane_center = (blended_left + blended_right) / 2
+    lane_center = raw_lane_center
 
-    if is_lane_changing:
-        # 큰 오차 영역을 압축해서 과조향 억제
-        error = float(np.tanh(error * 1.3) * 0.75)
+    if truck_id is not None:
+        previous_lane_center = _FILTERED_TARGET_CENTERS.get(truck_id)
+        alpha = 0.18 if is_lane_changing else 0.35
+        if previous_lane_center is None or target_lane == 'center':
+            lane_center = raw_lane_center
+        else:
+            lane_center = ((1.0 - alpha) * previous_lane_center) + (alpha * raw_lane_center)
+        _FILTERED_TARGET_CENTERS[truck_id] = lane_center
+
+    error = (lane_center - img_center) / img_center
 
     pid_output = pid_controller.compute(error)
 
     if is_lane_changing:
-        return np.clip(-pid_output * 16.0, -12.0, 12.0)
+        if target_lane == 'right':
+            steer_gain = 15.0
+            steer_limit = 11.0
+        else:
+            steer_gain = 15.0
+            steer_limit = 11.0
+        return np.clip(-pid_output * steer_gain, -steer_limit, steer_limit)
     else:
         return np.clip(-pid_output * 35.0, -30.0, 30.0)
